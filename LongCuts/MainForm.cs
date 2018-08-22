@@ -29,6 +29,10 @@ namespace LongCuts
 
 			LongCutList.DataSource = new BindingSource { DataSource = Store };
 
+			LongCutList.CellEndEdit += (s, e) => LongCutList.Rows[e.RowIndex].ErrorText = string.Empty;
+
+			LongCutList.RowValidating += LongCutList_RowValidating;
+
 			keysource = Observable.FromEventPattern<KeyPressEventArgs>
 				(
 					x => interceptor.KeyPress+=x,
@@ -61,14 +65,40 @@ namespace LongCuts
 				};
 		}
 
+		private void LongCutList_RowValidating(object sender, DataGridViewCellCancelEventArgs e)
+		{
+			var row = LongCutList.Rows[e.RowIndex];
+
+			e.Cancel = !(ValidateCell(row.Cells[0]) && ValidateCell(row.Cells[1]));
+		}
+
+		private bool ValidateCell(DataGridViewCell cell)
+		{
+			string headerText = LongCutList.Columns[cell.ColumnIndex].HeaderText;
+
+			if (string.IsNullOrEmpty(cell.FormattedValue.ToString()))
+			{
+				LongCutList.Rows[cell.RowIndex].ErrorText = $"Column '{headerText}' must not be empty";
+				return false;
+			}
+
+			return true;
+		}
+
 		private void Process(IList<char> chars)
 		{
-			var found = Store.FirstOrDefault(x => x.ShortCut.Equals(new string(chars.ToArray()), StringComparison.CurrentCultureIgnoreCase));
+			var startText = new string(chars.ToArray()).TrimStart();
+
+			var searchText = startText.Trim();
+
+			var found = Store.FirstOrDefault(x => x.ShortCut.Equals(searchText, StringComparison.CurrentCultureIgnoreCase));
 
 			if (found != null)
 			{
-				var bs = new StringBuilder().Insert(0, "{BS}", chars.Count).ToString();
-				SendKeys.Send(bs + found.Text);
+				var bs = new StringBuilder().Insert(0, "{BS}", searchText.Length).ToString();
+				var left = new StringBuilder().Insert(0, "{LEFT}", startText.Length - searchText.Length).ToString();
+				var right = new StringBuilder().Insert(0, "{RIGHT}", startText.Length - searchText.Length).ToString();
+				SendKeys.Send(left + bs + found.Text + right);
 			}
 		}
 
@@ -120,6 +150,7 @@ namespace LongCuts
 
 		private void ReloadButton_Click(object sender, EventArgs e)
 		{
+			LongCutList.CancelEdit();
 			Store.Load();
 		}
 

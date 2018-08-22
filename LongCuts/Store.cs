@@ -6,21 +6,24 @@ using System.Windows.Forms;
 
 namespace LongCuts
 {
-	internal class ShortCutStore : List<StoreItem>
+	internal class ShortCutStore : BindingList<StoreItem>
 	{
 		private readonly Settings original;
 
 		public ShortCutStore(Settings settings)
 		{
 			original = settings;
+
 			Load();
+
+			RaiseListChangedEvents = true;
 		}
 
 		public void Save(int debounce)
 		{
 			try
 			{
-				var values = Utf8Json.JsonSerializer.ToJsonString<List<StoreItem>>(this);
+				var values = Utf8Json.JsonSerializer.ToJsonString<BindingList<StoreItem>>(this);
 
 				original.Shortcuts = values;
 				original.DebounceMilliseconds = debounce;
@@ -40,6 +43,8 @@ namespace LongCuts
 		{
 			try
 			{
+				Clear();
+
 				foreach (var item in Utf8Json.JsonSerializer.Deserialize<List<StoreItem>>(original.Shortcuts))
 				{
 					Add(item);
